@@ -1,0 +1,68 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.level-section {
+    display: none;
+}
+
+.level-section.active {
+    display: block;
+    animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+}
+
+.card-header:first-child {
+    border-radius: 12px 12px 0 0;
+}
+
+#mapCanvas {
+    max-width: 100%;
+    height: auto;
+    background: #f0f0f0;
+}
+
+canvas {
+    max-width: 100%;
+}
+
+video {
+    max-width: 100%;
+}
+
+#photoCanvas {
+    max-width: 100%;
+}
+
+.badge {
+    font-size: 0.9rem;
+    padding: 0.5em 1em;
+}
+
+footer {
+    margin-top: 2rem;
+}
+
+.btn {
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
