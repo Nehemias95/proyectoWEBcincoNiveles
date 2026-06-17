@@ -97,8 +97,8 @@ const App = {
         if (num === 3 && this.photoData) {
             this.displaySavedPhoto();
             const btn = document.getElementById('captureBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-check-circle"></i> Foto Capturada';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-camera-fill"></i> Recapturar';
         }
     },
 
@@ -386,9 +386,12 @@ const App = {
         this.photoData = canvas.toDataURL('image/png');
         localStorage.setItem('escapeRoomPhoto', this.photoData);
         this.displaySavedPhoto();
-        document.getElementById('captureBtn').disabled = true;
-        document.getElementById('captureBtn').innerHTML = '<i class="bi bi-check-circle"></i> Foto Capturada';
-        this.completeLevel(3);
+        if (!this.completedLevels.has(3)) {
+            this.completeLevel(3);
+            document.getElementById('captureBtn').innerHTML = '<i class="bi bi-camera-fill"></i> Capturar Otra';
+        } else {
+            document.getElementById('captureBtn').innerHTML = '<i class="bi bi-camera-fill"></i> Recapturar';
+        }
     },
 
     displaySavedPhoto() {
@@ -414,10 +417,11 @@ const App = {
             this.photoData = ev.target.result;
             localStorage.setItem('escapeRoomPhoto', this.photoData);
             this.displaySavedPhoto();
-            document.getElementById('captureBtn').disabled = true;
-            document.getElementById('captureBtn').innerHTML = '<i class="bi bi-check-circle"></i> Foto Subida';
             document.getElementById('cameraError').classList.add('d-none');
-            this.completeLevel(3);
+            if (!this.completedLevels.has(3)) {
+                this.completeLevel(3);
+                document.getElementById('captureBtn').innerHTML = '<i class="bi bi-camera-fill"></i> Capturar Otra';
+            }
         };
         reader.readAsDataURL(file);
     },
