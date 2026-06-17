@@ -89,7 +89,10 @@ const App = {
         document.getElementById('levelBadge').textContent = `Nivel ${num}/5`;
 
         if (num === 2 && this.completedLevels.has(2)) {
-            setTimeout(() => this.drawMap(true), 100);
+            this.drawMapInstant();
+            const b2 = document.getElementById('drawMapBtn');
+            b2.disabled = true;
+            b2.innerHTML = '<i class="bi bi-check-circle"></i> Mapa Dibujado';
         } else if (num === 2 && this.location) {
             document.getElementById('drawMapBtn').disabled = false;
         }
@@ -221,15 +224,178 @@ const App = {
             this.showAlert('Debes completar el Nivel 1 primero.', 'warning');
             return;
         }
-        if (this.completedLevels.has(2) && !redraw) return;
+        if (this.completedLevels.has(2) && !redraw) {
+            this.drawMapInstant();
+            return;
+        }
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         const w = canvas.width;
         const h = canvas.height;
+        const btn = document.getElementById('drawMapBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Dibujando...';
 
         ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#e8f5e9';
+        ctx.fillRect(0, 0, w, h);
 
+        const status = document.getElementById('canvasStatus');
+        status.className = 'text-muted small';
+
+        const steps = [
+            {
+                label: 'Parque Central',
+                draw: () => {
+                    ctx.fillStyle = '#a5d6a7';
+                    ctx.fillRect(50, 50, 200, 150);
+                    ctx.fillStyle = '#2e7d32';
+                    ctx.font = '14px sans-serif';
+                    ctx.fillText('PARQUE CENTRAL', 90, 140);
+                }
+            },
+            {
+                label: 'Lago',
+                draw: () => {
+                    ctx.fillStyle = '#90caf9';
+                    ctx.fillRect(400, 200, 150, 100);
+                    ctx.fillStyle = '#1565c0';
+                    ctx.font = '14px sans-serif';
+                    ctx.fillText('LAGO', 460, 260);
+                }
+            },
+            {
+                label: 'Av. Central',
+                draw: () => {
+                    ctx.fillStyle = '#795548';
+                    ctx.fillRect(250, 0, 8, h);
+                    ctx.fillStyle = '#5d4037';
+                    ctx.font = '12px sans-serif';
+                    ctx.fillText('Av. Central', 180, 20);
+                }
+            },
+            {
+                label: 'Calle 1',
+                draw: () => {
+                    ctx.fillStyle = '#795548';
+                    ctx.fillRect(0, 200, w, 6);
+                    ctx.fillStyle = '#5d4037';
+                    ctx.font = '12px sans-serif';
+                    ctx.fillText('Calle 1', 20, 195);
+                }
+            },
+            {
+                label: 'Edificio A',
+                draw: () => {
+                    ctx.fillStyle = '#ffcc80';
+                    ctx.fillRect(300, 50, 80, 60);
+                    ctx.fillStyle = '#e65100';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Edificio A', 340, 85);
+                    ctx.textAlign = 'left';
+                }
+            },
+            {
+                label: 'Museo',
+                draw: () => {
+                    ctx.fillStyle = '#ce93d8';
+                    ctx.fillRect(350, 300, 70, 70);
+                    ctx.fillStyle = '#6a1b9a';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Museo', 385, 340);
+                    ctx.textAlign = 'left';
+                }
+            },
+            {
+                label: 'Rectángulo (Zona Restringida)',
+                draw: () => {
+                    ctx.strokeStyle = '#d32f2f';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(420, 50, 120, 80);
+                    ctx.fillStyle = '#d32f2f';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Zona Restringida', 480, 100);
+                    ctx.textAlign = 'left';
+                }
+            },
+            {
+                label: 'Línea de límite',
+                draw: () => {
+                    ctx.strokeStyle = '#1976d2';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(50, 320);
+                    ctx.lineTo(250, 350);
+                    ctx.stroke();
+                    ctx.fillStyle = '#1976d2';
+                    ctx.font = '11px sans-serif';
+                    ctx.fillText('Línea de límite', 60, 315);
+                }
+            },
+            {
+                label: 'Círculo (Zona de seguridad)',
+                draw: () => {
+                    ctx.strokeStyle = '#f57c00';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(550, 100, 40, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fillStyle = '#f57c00';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Zona de seguridad', 550, 105);
+                    ctx.textAlign = 'left';
+                }
+            },
+            {
+                label: '📍 Tu ubicación',
+                draw: () => {
+                    const px = { x: w / 2, y: h / 2 };
+                    ctx.beginPath();
+                    ctx.arc(px.x, px.y, 10, 0, Math.PI * 2);
+                    ctx.fillStyle = '#e53935';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.font = 'bold 14px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('📍', px.x, px.y - 18);
+                    ctx.textAlign = 'left';
+                }
+            }
+        ];
+
+        let i = 0;
+        const interval = setInterval(() => {
+            if (i >= steps.length) {
+                clearInterval(interval);
+                status.textContent = 'Mapa dibujado correctamente con tu ubicación marcada.';
+                status.classList.remove('text-muted');
+                status.classList.add('text-success', 'fw-bold');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-check-circle"></i> Mapa Dibujado';
+                this.completeLevel(2);
+                return;
+            }
+            status.textContent = `Dibujando: ${steps[i].label}...`;
+            steps[i].draw();
+            i++;
+        }, 200);
+    },
+
+    drawMapInstant() {
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const status = document.getElementById('canvasStatus');
+
+        ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = '#e8f5e9';
         ctx.fillRect(0, 0, w, h);
 
@@ -273,7 +439,6 @@ const App = {
         ctx.fillText('Museo', 385, 340);
         ctx.textAlign = 'left';
 
-        // RECTANGLE
         ctx.strokeStyle = '#d32f2f';
         ctx.lineWidth = 3;
         ctx.strokeRect(420, 50, 120, 80);
@@ -283,7 +448,6 @@ const App = {
         ctx.fillText('Zona Restringida', 480, 100);
         ctx.textAlign = 'left';
 
-        // LINE
         ctx.strokeStyle = '#1976d2';
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -294,7 +458,6 @@ const App = {
         ctx.font = '11px sans-serif';
         ctx.fillText('Línea de límite', 60, 315);
 
-        // CIRCLE
         ctx.strokeStyle = '#f57c00';
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -306,11 +469,7 @@ const App = {
         ctx.fillText('Zona de seguridad', 550, 105);
         ctx.textAlign = 'left';
 
-        // Mark user position
-        const px = {
-            x: w / 2,
-            y: h / 2
-        };
+        const px = { x: w / 2, y: h / 2 };
         ctx.beginPath();
         ctx.arc(px.x, px.y, 10, 0, Math.PI * 2);
         ctx.fillStyle = '#e53935';
@@ -318,24 +477,14 @@ const App = {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 3;
         ctx.stroke();
-        ctx.fillStyle = '#fff';
         ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('📍', px.x, px.y - 18);
         ctx.textAlign = 'left';
 
-        const status = document.getElementById('canvasStatus');
-        if (!redraw) {
-            status.textContent = 'Mapa dibujado correctamente con tu ubicación marcada.';
-            status.classList.remove('text-muted');
-            status.classList.add('text-success', 'fw-bold');
-            document.getElementById('drawMapBtn').disabled = true;
-            this.completeLevel(2);
-        } else {
-            status.textContent = 'Mapa (nivel completado)';
-            status.classList.remove('text-muted');
-            status.classList.add('text-success', 'fw-bold');
-        }
+        status.textContent = 'Mapa (nivel completado)';
+        status.classList.remove('text-muted');
+        status.classList.add('text-success', 'fw-bold');
     },
 
     // ============ LEVEL 3 ============
