@@ -9,6 +9,7 @@ const App = {
     init() {
         this.loadState();
         this.bindEvents();
+        this.restoreButtons();
         this.showLevel(1);
         this.updateProgress();
         if (this.photoData) {
@@ -39,11 +40,23 @@ const App = {
         localStorage.setItem('escapeRoomCompleted', JSON.stringify([...this.completedLevels]));
     },
 
+    restoreButtons() {
+        for (const level of this.completedLevels) {
+            const nextBtn = document.querySelector(`.next-level-btn[data-next="${level + 1}"]`);
+            if (nextBtn) nextBtn.disabled = false;
+        }
+        if (this.completedLevels.has(5)) {
+            const btn5 = document.querySelector('.next-level-btn[data-next="complete"]');
+            if (btn5) btn5.disabled = false;
+        }
+    },
+
     bindEvents() {
         document.getElementById('getLocationBtn').addEventListener('click', () => this.getLocation());
         document.getElementById('drawMapBtn').addEventListener('click', () => this.drawMap());
         document.getElementById('startCameraBtn').addEventListener('click', () => this.startCamera());
         document.getElementById('captureBtn').addEventListener('click', () => this.capturePhoto());
+        document.getElementById('photoUpload').addEventListener('change', (e) => this.handlePhotoUpload(e));
         document.getElementById('processLevel4Btn').addEventListener('click', () => this.processLevel4());
         document.getElementById('processLevel5Btn').addEventListener('click', () => this.processLevel5());
         document.getElementById('exportJsonBtn').addEventListener('click', () => this.exportJSON());
@@ -137,44 +150,62 @@ const App = {
             return;
         }
 
+        const options = {
+            enableHighAccuracy: false,
+            timeout: 30000,
+            maximumAge: 60000
+        };
+
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                this.location = {
-                    lat: pos.coords.latitude,
-                    lng: pos.coords.longitude
-                };
-                localStorage.setItem('escapeRoomLocation', JSON.stringify(this.location));
-                document.getElementById('latitude').textContent = pos.coords.latitude.toFixed(6);
-                document.getElementById('longitude').textContent = pos.coords.longitude.toFixed(6);
-                document.getElementById('locationResult').classList.remove('d-none');
-                document.getElementById('locationError').classList.add('d-none');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-check-circle"></i> Ubicación Obtenida';
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-success');
-                this.completeLevel(1);
+                this.setLocation(pos.coords.latitude, pos.coords.longitude, btn);
             },
             (err) => {
-                let msg = '';
-                switch (err.code) {
-                    case err.PERMISSION_DENIED:
-                        msg = 'Permiso denegado. Activa la geolocalización en tu navegador.';
-                        break;
-                    case err.POSITION_UNAVAILABLE:
-                        msg = 'Ubicación no disponible. Intenta de nuevo.';
-                        break;
-                    case err.TIMEOUT:
-                        msg = 'Tiempo de espera agotado. Intenta de nuevo.';
-                        break;
-                    default:
-                        msg = 'Error desconocido al obtener la ubicación.';
+                console.warn('Geolocation error:', err.code, err.message);
+                if (err.code === err.PERMISSION_DENIED) {
+                    this.showGeoError('Permiso denegado. Activa la geolocalización en tu navegador.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-crosshair"></i> Obtener Ubicación';
+                    return;
                 }
-                this.showGeoError(msg);
+                this.tryIpFallback(btn);
+            },
+            options
+        );
+    },
+
+    setLocation(lat, lng, btn) {
+        this.location = { lat, lng };
+        localStorage.setItem('escapeRoomLocation', JSON.stringify(this.location));
+        document.getElementById('latitude').textContent = lat.toFixed(6);
+        document.getElementById('longitude').textContent = lng.toFixed(6);
+        document.getElementById('locationResult').classList.remove('d-none');
+        document.getElementById('locationError').classList.add('d-none');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> Ubicación Obtenida';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+        this.completeLevel(1);
+    },
+
+    async tryIpFallback(btn) {
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Intentando por IP...';
+        try {
+            const res = await fetch('https://ipapi.co/json/');
+            const data = await res.json();
+            if (data.latitude && data.longitude) {
+                this.setLocation(data.latitude, data.longitude, btn);
+            } else {
+                this.showGeoError('No se pudo determinar tu ubicación. En Firefox, ve a about:config y verifica que geo.enabled = true.');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-crosshair"></i> Obtener Ubicación';
-            },
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
+            }
+        } catch (e) {
+            console.error('IP fallback error:', e);
+            this.showGeoError('No se pudo determinar tu ubicación. En Firefox, ve a about:config y verifica que geo.enabled = true.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-crosshair"></i> Obtener Ubicación';
+        }
     },
 
     showGeoError(msg) {
@@ -320,6 +351,7 @@ const App = {
             video.play();
             document.getElementById('captureBtn').disabled = false;
             document.getElementById('cameraError').classList.add('d-none');
+            document.getElementById('cameraFallback').classList.add('d-none');
             startBtn.innerHTML = '<i class="bi bi-check-circle"></i> Cámara Activa';
             startBtn.classList.remove('btn-warning');
             startBtn.classList.add('btn-success');
@@ -331,7 +363,8 @@ const App = {
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
                 msg = 'Permiso denegado. Permite el acceso a la cámara en tu navegador.';
             } else if (err.name === 'NotFoundError') {
-                msg = 'Cámara no encontrada. Conecta una cámara e intenta de nuevo.';
+                msg = 'Cámara no encontrada. Puedes subir una imagen como evidencia.';
+                document.getElementById('cameraFallback').classList.remove('d-none');
             } else {
                 msg = 'Error al acceder a la cámara: ' + err.message;
             }
@@ -339,7 +372,7 @@ const App = {
             errEl.textContent = msg;
             errEl.classList.remove('d-none');
             startBtn.disabled = false;
-            startBtn.innerHTML = '<i class="bi bi-camera-video-fill"></i> Iniciar Cámara';
+            startBtn.innerHTML = '<i class="bi bi-camera-video-fill"></i> Reintentar Cámara';
         }
     },
 
@@ -371,6 +404,22 @@ const App = {
             ctx.drawImage(img, 0, 0);
         };
         img.src = this.photoData;
+    },
+
+    handlePhotoUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            this.photoData = ev.target.result;
+            localStorage.setItem('escapeRoomPhoto', this.photoData);
+            this.displaySavedPhoto();
+            document.getElementById('captureBtn').disabled = true;
+            document.getElementById('captureBtn').innerHTML = '<i class="bi bi-check-circle"></i> Foto Subida';
+            document.getElementById('cameraError').classList.add('d-none');
+            this.completeLevel(3);
+        };
+        reader.readAsDataURL(file);
     },
 
     // ============ LEVEL 4 ============
